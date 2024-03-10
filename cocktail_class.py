@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.feature_extraction.text import CountVectorizer
 
+# Load environment variables
 load_dotenv()
 
 
@@ -37,6 +38,7 @@ class Cocktail:
         all_names_query = f"SELECT name FROM {Cocktail.TABLE}"
         all_names = DatabaseManager(Cocktail.DB_PATH).select_query(all_names_query, fetch_all=True)
         best_match = max(all_names, key=lambda x: Levenshtein.ratio(input_str.lower(), x.lower()))
+        print(input_str, best_match, Levenshtein.ratio(input_str.lower(), best_match.lower()))
         return best_match
 
     def _get_cocktail_info(self, column):
@@ -69,15 +71,16 @@ class Cocktail:
         return self._get_cocktail_info('category')
 
     def recommend_similar_cocktails(self):
-        all_recipes_query = f"SELECT recipe FROM {Cocktail.TABLE}"
-        all_recipes = DatabaseManager(Cocktail.DB_PATH).select_query(all_recipes_query, fetch_all=True)
-        single_recipe = self._get_cocktail_info('recipe')
+        all_ingredients_query = f"SELECT ingredients FROM {Cocktail.TABLE}"
+        all_ingredients = DatabaseManager(Cocktail.DB_PATH).select_query(all_ingredients_query, fetch_all=True)
+        chosen_ingredients = self.get_ingredients()
 
-        vectorizer = CountVectorizer()
-        X = vectorizer.fit_transform(all_recipes)
-        query_vec = vectorizer.transform([single_recipe])
+        vectorizer = CountVectorizer(analyzer='word')
+        X = vectorizer.fit_transform(all_ingredients)
+        query_vec = vectorizer.transform([chosen_ingredients])
 
+        # Choose top 3 similar cocktails using cosine metric
         similarity_matrix = cosine_similarity(query_vec, X)
-        similar_indices = list(map(int, similarity_matrix[-1].argsort()[:-4:-1]))
+        similar_indices = list(map(int, similarity_matrix[-1].argsort()[-2:-5:-1]))
         similar_cocktails = [self._get_cocktail_name_by_index(index) for index in similar_indices]
         return similar_cocktails
