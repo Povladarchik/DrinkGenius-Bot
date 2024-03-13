@@ -1,4 +1,5 @@
 import os
+import re
 import sqlite3
 import Levenshtein
 from dotenv import load_dotenv
@@ -38,8 +39,13 @@ class Cocktail:
         all_names_query = f"SELECT name FROM {Cocktail.TABLE}"
         all_names = DatabaseManager(Cocktail.DB_PATH).select_query(all_names_query, fetch_all=True)
         best_match = max(all_names, key=lambda x: Levenshtein.ratio(input_str.lower(), x.lower()))
-        print(input_str, best_match, Levenshtein.ratio(input_str.lower(), best_match.lower()))
         return best_match
+
+    @staticmethod
+    def _remove_last_number_and_measure(text):
+        cleaned_text = re.sub(r'\d+(\.\d+)?\s*(oz|piece)', '', text)
+        cleaned_text = re.sub(r'\s+', ' ', cleaned_text).strip()
+        return cleaned_text
 
     def _get_cocktail_info(self, column):
         query = f"SELECT {column} FROM {Cocktail.TABLE} WHERE name = ?"
@@ -75,7 +81,7 @@ class Cocktail:
         all_ingredients = DatabaseManager(Cocktail.DB_PATH).select_query(all_ingredients_query, fetch_all=True)
         chosen_ingredients = self.get_ingredients()
 
-        vectorizer = CountVectorizer(analyzer='word')
+        vectorizer = CountVectorizer(analyzer='word', preprocessor=self._remove_last_number_and_measure)
         X = vectorizer.fit_transform(all_ingredients)
         query_vec = vectorizer.transform([chosen_ingredients])
 
